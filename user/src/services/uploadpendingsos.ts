@@ -6,6 +6,7 @@ import createSOSAlert from "./sos";
 const KEY = "pending_sos";
 
 export const uploadPendingSOS = async () => {
+   
   const alerts = await getPendingSOS();
 
   if (alerts.length === 0) return;

@@ -9,29 +9,70 @@ import { auth } from "@/firebase/firebase";
 
 export const SERVICE_ID = "com.safara.sos";
 
-const requestPermission = async () => {
-  if (Platform.OS !== "android") return;
-  await PermissionsAndroid.requestMultiple([
+const requestPermission = async (): Promise<boolean> => {
+  if (Platform.OS !== "android") {
+    return true;
+  }
+
+  const permissions = [
     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
     PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
     PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
     PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
     PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES,
-  ]);
+  ];
+
+  const result = await PermissionsAndroid.requestMultiple(permissions);
+
+  console.log("[Nearby] Permission result:", result);
+
+  const allGranted = permissions.every(
+    (permission) =>
+      result[permission] === PermissionsAndroid.RESULTS.GRANTED,
+  );
+
+  return allGranted;
 };
 
 export const startAdvertise = async () => {
-  await requestPermission();
-  await Nearby.startAdvertise(SERVICE_ID, Nearby.Strategy.P2P_CLUSTER);
+  const granted = await requestPermission();
 
-  console.log("[Nearby] Advertising started");
+  if (!granted) {
+    console.error("[Nearby] Required permissions not granted");
+    return;
+  }
+
+  try {
+    await Nearby.startAdvertise(
+      SERVICE_ID,
+      Nearby.Strategy.P2P_CLUSTER,
+    );
+
+    console.log("[Nearby] Advertising started");
+  } catch (error) {
+    console.error("[Nearby] Failed to start advertising:", error);
+  }
 };
 
 export const startDiscovery = async () => {
-  await requestPermission();
-  await Nearby.startDiscovery(SERVICE_ID, Nearby.Strategy.P2P_CLUSTER);
+  const granted = await requestPermission();
 
-  console.log("[Nearby] Discovery started");
+  if (!granted) {
+    console.error("[Nearby] Required permissions not granted");
+    return;
+  }
+
+  try {
+    await Nearby.startDiscovery(
+      SERVICE_ID,
+      Nearby.Strategy.P2P_CLUSTER,
+    );
+
+    console.log("[Nearby] Discovery started");
+  } catch (error) {
+    console.error("[Nearby] Failed to start discovery:", error);
+  }
 };
 
 export const stopDiscovery = async () => {

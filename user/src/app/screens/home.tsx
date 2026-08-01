@@ -8,7 +8,10 @@ import {
 import ConnectedCard from "@/components/ConnectedCard";
 import { getCurrentCoordinates, getCurrentLocation } from "@/services/location";
 import { broadcastSOS } from "@/services/nearby";
-import { savePendingSOS } from "@/services/offlinesos";
+import {
+  clearPendingSOS,
+  savePendingSOS,
+} from "@/services/offlinesos";
 import { startCrashDetector, stopCrashDetector } from "@/services/sensors";
 import createSOSAlert, { SOSAlert } from "@/services/sos";
 import { uploadPendingSOS } from "@/services/uploadpendingsos";
@@ -29,13 +32,13 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [locationLoading, setLocationLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
+useEffect(() => {
+  if (!user) {
+    return;
+  }
 
-    loadLocation();
-  }, [user]);
+  loadLocation();
+}, [user]);
 
   useEffect(() => {
     startCrashDetector(() => {
@@ -79,27 +82,35 @@ export default function HomeScreen() {
   }, []);
 
   const handleSOS = async () => {
-    if (countDown !== null) return;
-    console.log("handleSOS called");
+  if (countDown !== null) return;
 
+  console.log("handleSOS called");
+
+  try {
+    const location = await getCurrentCoordinates();
+
+    const sos: SOSAlert = {
+      sosId: `${user?.uid}-${Date.now()}`,
+      userId: user?.uid || "",
+      address: "Unknown",
+      latitude: location?.latitude || 0,
+      longitude: location?.longitude || 0,
+      locationName: "Unknown",
+      name: user?.displayName || "",
+      emergencyContacts: profile?.emergencyContact || [],
+      status: "ACTIVE",
+    };
+
+    setSosLocation(sos);
+
+    // Start countdown only after SOS payload is ready
     setCountDown(5);
-    try {
-      const location = await getCurrentCoordinates();
-      setSosLocation({
-        sosId: `${user?.uid}-${Date.now()}`,
-        userId: user?.uid || "",
-        address: "Unknown",
-        latitude: location?.latitude || 0,
-        longitude: location?.longitude || 0,
-        locationName: "Unknown",
-        name: user?.displayName || "",
-        emergencyContacts: profile?.emergencyContact || [],
-        status: "ACTIVE",
-      });
-    } catch (error) {
-      console.error("Error getting location:", error);
-    }
-  };
+
+    console.log("SOS prepared:", sos);
+  } catch (error) {
+    console.error("Error getting location:", error);
+  }
+};
 
   const cancelSOS = () => {
     setCountDown(null);
