@@ -11,11 +11,15 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@maplibre/maplibre-react-native": "^11.3.6",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "11.5.2",
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/elements": "^2.9.10",
     "@react-navigation/native": "^7.1.33",
+    "@turf/boolean-point-in-polygon": "^7.3.5",
+    "@turf/helpers": "^7.3.5",
+    "@turf/point-to-line-distance": "^7.3.5",
     "expo": "~55.0.26",
     "expo-constants": "~55.0.16",
     "expo-device": "~55.0.17",
@@ -54,6 +58,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
   },
