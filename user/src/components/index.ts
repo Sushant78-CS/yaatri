@@ -1,6 +1,6 @@
 import HeaderCard from "./HeaderCard";
 import InfoRow from "./InfoRow";
-import LocationCard from "./LocationCard";
+
 import NearbyCard from "./NearbyCard";
 import QuickActionCard from "./QuickActonCard";
 import SettingRow from "./SettingRow";
@@ -10,7 +10,7 @@ import SosButton from "./SosButton";
 export {
   HeaderCard,
   InfoRow,
-  LocationCard,
+  
   NearbyCard,
   QuickActionCard,
   SettingRow,

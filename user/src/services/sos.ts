@@ -26,6 +26,11 @@ export interface SOSAlert {
 }
 
 const createSOSAlert = async (payload: SOSAlert) => {
+  if (!payload.sosId) {
+    console.error("[SOS] Invalid payload - sosId missing:", payload);
+    throw new Error("Cannot create SOS alert: sosId is missing");
+  }
+
   await setDoc(
     doc(db, "sosAlerts", payload.sosId),
     {
@@ -38,7 +43,7 @@ const createSOSAlert = async (payload: SOSAlert) => {
       locationName: payload.locationName,
       bloodGroup: payload.bloodGroup || "",
       age: payload.age || "",
-      emergencyContacts: payload.emergencyContacts,
+      emergencyContacts: payload.emergencyContacts || [],
       status: "ACTIVE",
       createdAt: serverTimestamp(),
     },
@@ -46,9 +51,9 @@ const createSOSAlert = async (payload: SOSAlert) => {
       merge: true,
     },
   );
+
   return payload.sosId;
 };
-
 export const subscribeSOSHistory = (callback: (alerts: any[]) => void) => {
   if (!auth.currentUser) return () => {};
 
