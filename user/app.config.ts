@@ -6,7 +6,10 @@ const expoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   name: "Rakshak",
   slug: "rakshak",
 
-  plugins: [...(config.plugins || [])],
+  plugins: [
+  ...(config.plugins || []),
+  "@maplibre/maplibre-react-native",
+],
 
   extra: {
     ...config.extra,

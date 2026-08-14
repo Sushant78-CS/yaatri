@@ -45,6 +45,12 @@ export default function QuickActionCard() {
           label="History"
           loading={false}
         />
+        <ActionCard
+  onPress={() => router.push("/screens/navigation")}
+  icon="map"
+  label="Safety Map"
+  loading={false}
+/>
       </View>
     </>
   );
