@@ -16,8 +16,7 @@ export default function useLocationTracking() {
 
     const startTracking = async () => {
       try {
-        const { status } =
-          await Location.requestForegroundPermissionsAsync();
+        const { status } = await Location.requestForegroundPermissionsAsync();
 
         if (status !== "granted") {
           setError("Location permission denied");
@@ -28,10 +27,16 @@ export default function useLocationTracking() {
         subscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            distanceInterval: 10,
-            timeInterval: 5000,
+            distanceInterval: 2,
+            timeInterval: 2000,
           },
           (position) => {
+            console.log(
+              "RAW GPS:",
+              position.coords.latitude,
+              position.coords.longitude,
+            );
+
             setLocation({
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,

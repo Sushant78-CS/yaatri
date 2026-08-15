@@ -7,6 +7,7 @@ import emergencyServices from "@/features/safety-navigation/data/maharashtra/mum
 import StatusCard from "./StatusCard";
 import EmergencyCard from "./EmergencyCard";
 import MapLegend from "./MapLegend";
+import useRoute from "@/features/safety-navigation/hooks/useRoute";
 
 import {
   Camera,
@@ -20,10 +21,52 @@ import {
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { findNearestAmenity } from "../utils/nearestEmergency";
-
+import RouteLine from "./RouteLine";
+import DestinationMarker from "./DestinationMarker";
+import RouteInfoCard from "./RouteInfoCard";
+import NavigationCard from "./NavigationCard";
 export default function SafetyMap() {
   const { location, loading, error } = useLocationTracking();
-  
+  const [destination, setDestination] = React.useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [isNavigating, setIsNavigating] = React.useState(false);
+  React.useEffect(() => {
+    console.log("NAVIGATION MODE CHANGED:", isNavigating);
+  }, [isNavigating]);
+  React.useEffect(() => {
+  if (!location) return;
+
+  console.log(
+    "GPS UPDATE:",
+    location.latitude,
+    location.longitude,
+  );
+}, [location]);
+  const routeStart = location
+    ? {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      }
+    : null;
+
+  const {
+  route,
+  loading: routeLoading,
+  error: routeError,
+} = useRoute(
+  routeStart,
+  destination,
+  isNavigating,
+);
+  if (route) {
+    console.log("ROUTE DISTANCE:", route.distanceMeters, "meters");
+
+    console.log("ROUTE DURATION:", route.durationSeconds, "seconds");
+
+    console.log("ROUTE COORDINATES:", route.coordinates.length);
+  }
   if (loading) {
     return (
       <View style={styles.center}>
@@ -69,17 +112,33 @@ export default function SafetyMap() {
       <Map
         style={styles.map}
         mapStyle="https://tiles.openfreemap.org/styles/liberty"
+        onPress={(event) => {
+          const { lngLat } = event.nativeEvent;
+
+          const [longitude, latitude] = lngLat;
+
+          setDestination({
+            latitude,
+            longitude,
+          });
+
+          console.log("DESTINATION:", latitude, longitude);
+        }}
       >
         <Camera
-  initialViewState={{
-    center: [
-      location.longitude,
-      location.latitude,
-    ],
-    zoom: 15,
-  }}
-/>
+          initialViewState={{
+            center: [location.longitude, location.latitude],
+            zoom: 15,
+          }}
+        />
 
+        <RouteLine coordinates={route?.coordinates ?? null} />
+        {destination && (
+          <DestinationMarker
+            latitude={destination.latitude}
+            longitude={destination.longitude}
+          />
+        )}
         <Images
           images={{
             hospital: require("../assets/hospital.png"),
@@ -158,7 +217,7 @@ export default function SafetyMap() {
         )}
         <UserLocation />
       </Map>
-      
+
       <MapLegend />
       <StatusCard
         status={safetyResult.status}
@@ -170,6 +229,25 @@ export default function SafetyMap() {
         nearestHospital={nearestHospital}
         nearestPolice={nearestPolice}
       />
+      {route && !isNavigating && (
+  <RouteInfoCard
+    distanceMeters={route.distanceMeters}
+    durationSeconds={route.durationSeconds}
+    onStartNavigation={() => {
+      setIsNavigating(true);
+    }}
+  />
+)}
+
+{route && isNavigating && (
+  <NavigationCard
+    distanceMeters={route.distanceMeters}
+    durationSeconds={route.durationSeconds}
+    onStopNavigation={() => {
+      setIsNavigating(false);
+    }}
+  />
+)}
     </View>
   );
 }
