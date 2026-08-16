@@ -8,7 +8,8 @@ import StatusCard from "./StatusCard";
 import EmergencyCard from "./EmergencyCard";
 import MapLegend from "./MapLegend";
 import useRoute from "@/features/safety-navigation/hooks/useRoute";
-
+import useRouteProgress from "@/features/safety-navigation/hooks/useRouteProgress";
+import { distanceToRoute } from "../utils/distanceToRoute";
 import {
   Camera,
   GeoJSONSource,
@@ -36,14 +37,11 @@ export default function SafetyMap() {
     console.log("NAVIGATION MODE CHANGED:", isNavigating);
   }, [isNavigating]);
   React.useEffect(() => {
-  if (!location) return;
+    if (!location) return;
 
-  console.log(
-    "GPS UPDATE:",
-    location.latitude,
-    location.longitude,
-  );
-}, [location]);
+    console.log("GPS UPDATE:", location.latitude, location.longitude);
+  }, [location]);
+
   const routeStart = location
     ? {
         latitude: location.latitude,
@@ -52,14 +50,20 @@ export default function SafetyMap() {
     : null;
 
   const {
-  route,
-  loading: routeLoading,
-  error: routeError,
-} = useRoute(
-  routeStart,
-  destination,
-  isNavigating,
-);
+    route,
+    loading: routeLoading,
+    error: routeError,
+  } = useRoute(routeStart, destination, isNavigating);
+  const { remainingDistance, remainingDuration } = useRouteProgress(
+    routeStart,
+    route,
+    isNavigating,
+  );
+  React.useEffect(() => {
+    if (remainingDistance === null) return;
+
+    console.log("🚗 LIVE REMAINING:", Math.round(remainingDistance), "meters");
+  }, [remainingDistance]);
   if (route) {
     console.log("ROUTE DISTANCE:", route.distanceMeters, "meters");
 
@@ -130,6 +134,8 @@ export default function SafetyMap() {
             center: [location.longitude, location.latitude],
             zoom: 15,
           }}
+          trackUserLocation={isNavigating ? "course" : undefined}
+          zoom={16}
         />
 
         <RouteLine coordinates={route?.coordinates ?? null} />
@@ -230,24 +236,27 @@ export default function SafetyMap() {
         nearestPolice={nearestPolice}
       />
       {route && !isNavigating && (
-  <RouteInfoCard
-    distanceMeters={route.distanceMeters}
-    durationSeconds={route.durationSeconds}
-    onStartNavigation={() => {
-      setIsNavigating(true);
-    }}
-  />
-)}
+        <RouteInfoCard
+          distanceMeters={route.distanceMeters}
+          durationSeconds={route.durationSeconds}
+          onStartNavigation={() => {
+            setIsNavigating(true);
+          }}
+        />
+      )}
 
-{route && isNavigating && (
-  <NavigationCard
-    distanceMeters={route.distanceMeters}
-    durationSeconds={route.durationSeconds}
-    onStopNavigation={() => {
-      setIsNavigating(false);
-    }}
-  />
-)}
+      {route &&
+        isNavigating &&
+        remainingDistance !== null &&
+        remainingDuration !== null && (
+          <NavigationCard
+            remainingDistance={remainingDistance}
+            durationSeconds={remainingDuration}
+            onStopNavigation={() => {
+              setIsNavigating(false);
+            }}
+          />
+        )}
     </View>
   );
 }
