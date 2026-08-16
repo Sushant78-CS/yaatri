@@ -7,18 +7,16 @@ import {
 } from "react-native";
 
 interface Props {
-  distanceMeters: number;
+  remainingDistance: number;
   durationSeconds: number;
   onStopNavigation: () => void;
 }
-
 export default function NavigationCard({
-  distanceMeters,
+  remainingDistance,
   durationSeconds,
   onStopNavigation,
 }: Props) {
-  const distanceKm = (distanceMeters / 1000).toFixed(1);
-
+ const distanceKm = (remainingDistance / 1000).toFixed(1);
   const durationMinutes = Math.ceil(
     durationSeconds / 60,
   );
