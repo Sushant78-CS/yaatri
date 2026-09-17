@@ -9,11 +9,16 @@ import {
 interface Props {
   remainingDistance: number;
   durationSeconds: number;
+  instruction?: string;
+  maneuverDistance?: number | null;
   onStopNavigation: () => void;
 }
+
 export default function NavigationCard({
   remainingDistance,
   durationSeconds,
+  instruction,
+  maneuverDistance,
   onStopNavigation,
 }: Props) {
  const distanceKm = (remainingDistance / 1000).toFixed(1);
@@ -22,7 +27,22 @@ export default function NavigationCard({
   );
 
   return (
+    
     <View style={styles.card}>
+      {instruction && (
+  <View style={styles.instructionContainer}>
+    <Text style={styles.instruction}>
+      🧭 {instruction}
+    </Text>
+
+    {maneuverDistance !== null &&
+      maneuverDistance !== undefined && (
+        <Text style={styles.maneuverDistance}>
+          in {Math.round(maneuverDistance)} m
+        </Text>
+      )}
+  </View>
+)}
       <View style={styles.header}>
         <View>
           <Text style={styles.navigationTitle}>
@@ -196,4 +216,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+  instructionContainer: {
+  marginBottom: 14,
+},
+
+instruction: {
+  fontSize: 20,
+  fontWeight: "700",
+},
+
+maneuverDistance: {
+  marginTop: 4,
+  fontSize: 14,
+  fontWeight: "600",
+},
 });
