@@ -1,3 +1,4 @@
+import { countUnsafeRoutePoints } from "../utils/routeSafety";
 export interface RouteCoordinate {
   latitude: number;
   longitude: number;
@@ -8,6 +9,7 @@ export interface RouteResult {
   distanceMeters: number;
   durationSeconds: number;
   steps: RouteStep[];
+  unsafePoints: number;
 }
 export interface RouteStep {
   distanceMeters: number;
@@ -17,8 +19,7 @@ export interface RouteStep {
   maneuverModifier?: string;
   location: [number, number];
 }
-const OSRM_URL =
-  "https://router.project-osrm.org/route/v1/driving";
+const OSRM_URL = "https://router.project-osrm.org/route/v1/driving";
 
 export async function getRoute(
   start: RouteCoordinate,
@@ -28,7 +29,7 @@ export async function getRoute(
     `${OSRM_URL}/` +
     `${start.longitude},${start.latitude};` +
     `${destination.longitude},${destination.latitude}` +
-    `?overview=full&geometries=geojson&steps=true`;
+    `?overview=full&geometries=geojson&steps=true&alternatives=true`;
 
   console.log("🌐 ROUTING URL:", url);
 
@@ -39,82 +40,97 @@ export async function getRoute(
 
     const responseText = await response.text();
 
-    console.log(
-      "🌐 ROUTING RESPONSE:",
-      responseText.substring(0, 500),
-    );
+    console.log("🌐 ROUTING RESPONSE:", responseText.substring(0, 500));
 
     if (!response.ok) {
-      throw new Error(
-        `Routing request failed: ${response.status}`,
-      );
+      throw new Error(`Routing request failed: ${response.status}`);
     }
 
     const data = JSON.parse(responseText);
 
-    if (
-      !data.routes ||
-      data.routes.length === 0
-    ) {
+    if (!data.routes || data.routes.length === 0) {
       throw new Error("No route found.");
     }
 
-    const route = data.routes[0];
-    const steps: RouteStep[] = route.legs[0].steps.map(
-  (step: any) => {
-    const type = step.maneuver?.type ?? "continue";
-    const modifier =
-      step.maneuver?.modifier ?? "";
+    const routes = data.routes;
 
-    let instruction = "Continue";
+    console.log("🛣️ ROUTES FOUND:", routes.length);
+    let selectedRoute = routes[0];
 
-    if (type === "depart") {
-      instruction = "Start navigation";
-    } else if (type === "arrive") {
-      instruction = "Arrive at destination";
-    } else if (type === "turn") {
-      instruction =
-        modifier === "left"
-          ? "Turn left"
-          : modifier === "right"
-          ? "Turn right"
-          : "Turn";
-    } else if (type === "new name") {
-      instruction = "Continue";
-    } else if (type === "merge") {
-      instruction = "Merge";
-    } else if (type === "roundabout") {
-      instruction = "Enter roundabout";
-    } else if (type === "fork") {
-      instruction =
-        modifier === "left"
-          ? "Keep left"
-          : modifier === "right"
-          ? "Keep right"
-          : "Keep straight";
-    } else if (type === "continue") {
-      instruction = "Continue straight";
+    let bestUnsafePoints = countUnsafeRoutePoints(
+      selectedRoute.geometry.coordinates,
+    );
+
+    for (let i = 1; i < routes.length; i++) {
+      const unsafePoints = countUnsafeRoutePoints(
+        routes[i].geometry.coordinates,
+      );
+
+      console.log(`🛡️ ROUTE ${i + 1} UNSAFE POINTS:`, unsafePoints);
+
+      if (unsafePoints < bestUnsafePoints) {
+        selectedRoute = routes[i];
+        bestUnsafePoints = unsafePoints;
+      } else if (
+        unsafePoints === bestUnsafePoints &&
+        routes[i].distance < selectedRoute.distance
+      ) {
+        selectedRoute = routes[i];
+      }
     }
 
-    return {
-      distanceMeters: step.distance,
-      durationSeconds: step.duration,
-      instruction,
-      maneuverType: type,
-      maneuverModifier: modifier,
-      location: step.maneuver.location,
-    };
-  },
-);
+    console.log("🛡️ SELECTED ROUTE UNSAFE POINTS:", bestUnsafePoints);
+    const route = selectedRoute;
+    const steps: RouteStep[] = route.legs[0].steps.map((step: any) => {
+      const type = step.maneuver?.type ?? "continue";
+      const modifier = step.maneuver?.modifier ?? "";
+
+      let instruction = "Continue";
+
+      if (type === "depart") {
+        instruction = "Start navigation";
+      } else if (type === "arrive") {
+        instruction = "Arrive at destination";
+      } else if (type === "turn") {
+        instruction =
+          modifier === "left"
+            ? "Turn left"
+            : modifier === "right"
+              ? "Turn right"
+              : "Turn";
+      } else if (type === "new name") {
+        instruction = "Continue";
+      } else if (type === "merge") {
+        instruction = "Merge";
+      } else if (type === "roundabout") {
+        instruction = "Enter roundabout";
+      } else if (type === "fork") {
+        instruction =
+          modifier === "left"
+            ? "Keep left"
+            : modifier === "right"
+              ? "Keep right"
+              : "Keep straight";
+      } else if (type === "continue") {
+        instruction = "Continue straight";
+      }
+
+      return {
+        distanceMeters: step.distance,
+        durationSeconds: step.duration,
+        instruction,
+        maneuverType: type,
+        maneuverModifier: modifier,
+        location: step.maneuver.location,
+      };
+    });
 
     if (
       !route.geometry ||
       !route.geometry.coordinates ||
       route.geometry.coordinates.length < 2
     ) {
-      throw new Error(
-        "Route geometry is invalid.",
-      );
+      throw new Error("Route geometry is invalid.");
     }
 
     return {
@@ -122,6 +138,7 @@ export async function getRoute(
   distanceMeters: route.distance,
   durationSeconds: route.duration,
   steps,
+  unsafePoints: bestUnsafePoints,
 };
   } catch (error) {
     console.error("❌ ROUTING SERVICE ERROR:", error);
