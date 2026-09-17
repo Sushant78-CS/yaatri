@@ -9,6 +9,7 @@ import {
 interface Props {
   distanceMeters: number;
   durationSeconds: number;
+  unsafePoints: number;
   onStartNavigation?: () => void;
 }
 
@@ -16,6 +17,7 @@ export default function RouteInfoCard({
   distanceMeters,
   durationSeconds,
   onStartNavigation,
+  unsafePoints
 }: Props) {
   const distanceKm = (distanceMeters / 1000).toFixed(1);
 
@@ -25,6 +27,17 @@ export default function RouteInfoCard({
 
   return (
     <View style={styles.card}>
+      <View style={styles.safetyBadge}>
+  <Text style={styles.safetyText}>
+    🛡️ Safety-aware route
+  </Text>
+
+  <Text style={styles.safetySubtext}>
+    {unsafePoints === 0
+      ? "No known safety-zone conflicts"
+      : `${unsafePoints} route points inside safety zones`}
+  </Text>
+</View>
       <Text style={styles.title}>
         📍 Route to destination
       </Text>
@@ -124,6 +137,22 @@ const styles = StyleSheet.create({
     height: 35,
     backgroundColor: "#E5E7EB",
   },
+  safetyBadge: {
+  marginBottom: 12,
+  padding: 10,
+  borderRadius: 10,
+  backgroundColor: "#ECFDF5",
+},
+
+safetyText: {
+  fontSize: 14,
+  fontWeight: "700",
+},
+
+safetySubtext: {
+  marginTop: 3,
+  fontSize: 12,
+},
 
   navigationButton: {
     marginTop: 16,

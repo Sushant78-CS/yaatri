@@ -275,12 +275,13 @@ React.useEffect(() => {
       />
       {route && !isNavigating && (
         <RouteInfoCard
-          distanceMeters={route.distanceMeters}
-          durationSeconds={route.durationSeconds}
-          onStartNavigation={() => {
-            setIsNavigating(true);
-          }}
-        />
+  distanceMeters={route.distanceMeters}
+  durationSeconds={route.durationSeconds}
+  unsafePoints={route.unsafePoints}
+  onStartNavigation={() => {
+    setIsNavigating(true);
+  }}
+/>
       )}
 
       {hasArrived && (
