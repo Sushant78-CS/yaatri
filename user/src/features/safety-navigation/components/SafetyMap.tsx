@@ -9,8 +9,9 @@ import EmergencyCard from "./EmergencyCard";
 import MapLegend from "./MapLegend";
 import useRoute from "@/features/safety-navigation/hooks/useRoute";
 import useRouteProgress from "@/features/safety-navigation/hooks/useRouteProgress";
-import { distanceToRoute } from "../utils/distanceToRoute";
+
 import useArrivalDetection from "@/features/safety-navigation/hooks/useArrivalDetection";
+import useNavigationInstruction from "@/features/safety-navigation/hooks/useNavigationInstruction";
 import {
   Camera,
   GeoJSONSource,
@@ -45,6 +46,8 @@ export default function SafetyMap() {
 
   
 
+  
+
   const routeStart = location
     ? {
         latitude: location.latitude,
@@ -62,6 +65,26 @@ export default function SafetyMap() {
     route,
     isNavigating,
   );
+  const {
+  currentStep,
+  stepDistance,
+} = useNavigationInstruction(
+  routeStart,
+  route,
+  isNavigating,
+);
+React.useEffect(() => {
+  if (!currentStep || stepDistance === null) {
+    return;
+  }
+
+  console.log(
+    "🧭 NAVIGATION:",
+    currentStep.instruction,
+    Math.round(stepDistance),
+    "meters",
+  );
+}, [currentStep, stepDistance]);
   const hasArrived = useArrivalDetection(
   routeStart,
   destination,
@@ -277,12 +300,14 @@ export default function SafetyMap() {
         remainingDistance !== null &&
         remainingDuration !== null && (
           <NavigationCard
-            remainingDistance={remainingDistance}
-            durationSeconds={remainingDuration}
-            onStopNavigation={() => {
-              setIsNavigating(false);
-            }}
-          />
+  remainingDistance={remainingDistance}
+  durationSeconds={remainingDuration}
+  instruction={currentStep?.instruction}
+  maneuverDistance={stepDistance}
+  onStopNavigation={() => {
+    setIsNavigating(false);
+  }}
+/>
         )}
     </View>
   );
