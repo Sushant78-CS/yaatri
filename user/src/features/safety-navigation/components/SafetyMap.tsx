@@ -10,6 +10,7 @@ import MapLegend from "./MapLegend";
 import useRoute from "@/features/safety-navigation/hooks/useRoute";
 import useRouteProgress from "@/features/safety-navigation/hooks/useRouteProgress";
 import { distanceToRoute } from "../utils/distanceToRoute";
+import useArrivalDetection from "@/features/safety-navigation/hooks/useArrivalDetection";
 import {
   Camera,
   GeoJSONSource,
@@ -42,6 +43,8 @@ export default function SafetyMap() {
     console.log("GPS UPDATE:", location.latitude, location.longitude);
   }, [location]);
 
+  
+
   const routeStart = location
     ? {
         latitude: location.latitude,
@@ -59,6 +62,18 @@ export default function SafetyMap() {
     route,
     isNavigating,
   );
+  const hasArrived = useArrivalDetection(
+  routeStart,
+  destination,
+  isNavigating,
+);
+  React.useEffect(() => {
+  if (!hasArrived) return;
+
+  console.log("🏁 NAVIGATION COMPLETED");
+
+  setIsNavigating(false);
+}, [hasArrived]);
   React.useEffect(() => {
     if (remainingDistance === null) return;
 
@@ -245,6 +260,18 @@ export default function SafetyMap() {
         />
       )}
 
+      {hasArrived && (
+  <View style={styles.arrivalCard}>
+    <Text style={styles.arrivalTitle}>
+      🎉 You have arrived
+    </Text>
+
+    <Text style={styles.arrivalText}>
+      You reached your destination.
+    </Text>
+  </View>
+)}
+
       {route &&
         isNavigating &&
         remainingDistance !== null &&
@@ -313,4 +340,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  arrivalCard: {
+  position: "absolute",
+  bottom: 30,
+  left: 20,
+  right: 20,
+  padding: 18,
+  borderRadius: 16,
+  backgroundColor: "#DCFCE7",
+  elevation: 5,
+},
+
+arrivalTitle: {
+  fontSize: 18,
+  fontWeight: "700",
+},
+
+arrivalText: {
+  marginTop: 4,
+  fontSize: 14,
+},
 });
