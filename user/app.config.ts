@@ -12,9 +12,10 @@ const expoConfig = ({
   slug: "yaatri",
 
   plugins: [
-    ...(config.plugins || []),
-    "@maplibre/maplibre-react-native",
-  ],
+  ...(config.plugins || []),
+  "@maplibre/maplibre-react-native",
+  "expo-nearby-connections",
+],
 
   extra: {
     ...config.extra,
