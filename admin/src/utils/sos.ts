@@ -60,6 +60,10 @@ export const getDisplayLocation = (alert: SosAlert) => {
     return address;
   }
 
+  if (alert.latitude !== null && alert.longitude !== null) {
+    return formatCoordinates(alert);
+  }
+
   return "Location unknown";
 };
 

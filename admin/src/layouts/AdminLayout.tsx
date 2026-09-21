@@ -24,6 +24,16 @@ function AdminLayout() {
     return adminSections.filter(sec => !sec.requiresSuperAdmin || isSuperAdmin);
   }, [isSuperAdmin]);
 
+  if (shouldShowAuthPanel) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-100 p-4">
+        <div className="w-full max-w-md">
+          <AuthPanel />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="lg:flex">
@@ -31,11 +41,10 @@ function AdminLayout() {
         <div className="min-w-0 flex-1">
           <Topbar section={section} />
           <main className="px-4 py-6 sm:px-6 lg:px-8">
-            {shouldShowAuthPanel ? <AuthPanel /> : null}
             {shouldShowOnlyNotice ? <DataStateNotice status={status} message={message} /> : null}
             {status === "restricted" ? <DataStateNotice status={status} message={message} /> : null}
 
-            {!shouldShowAuthPanel && !shouldShowOnlyNotice ? (
+            {!shouldShowOnlyNotice ? (
               <div className="mt-6 first:mt-0">
                 {activeSection === "dashboard" ? <DashboardPage /> : null}
                 {activeSection === "sos-alerts" ? <SosAlertsPage /> : null}

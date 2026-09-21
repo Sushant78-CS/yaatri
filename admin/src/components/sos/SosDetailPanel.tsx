@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { SosAlert } from "../../types/sos";
 import { formatCoordinates, formatDateTime, getDisplayLocation, getMapsUrl } from "../../utils/sos";
 import SosStatusBadge from "./SosStatusBadge";
+import { resolveSosAlert } from "../../services/sosService";
 
 type SosDetailPanelProps = {
   alert: SosAlert | null;
@@ -16,9 +18,26 @@ const displayOptional = (value: string | number | null | undefined) => {
 };
 
 function SosDetailPanel({ alert, onClose }: SosDetailPanelProps) {
+  const [isResolving, setIsResolving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (!alert) {
     return null;
   }
+
+  const handleResolve = async () => {
+    if (!confirm("Mark this SOS as resolved?")) return;
+    
+    setIsResolving(true);
+    setError(null);
+    try {
+      await resolveSosAlert(alert.sosId);
+      setIsResolving(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resolve SOS.");
+      setIsResolving(false);
+    }
+  };
 
   const mapsUrl = getMapsUrl(alert);
 
@@ -34,6 +53,17 @@ function SosDetailPanel({ alert, onClose }: SosDetailPanelProps) {
               </h2>
             </div>
             <div className="flex items-center gap-2">
+              {error ? <span className="text-xs text-red-600 mr-2">{error}</span> : null}
+              {alert.status === "ACTIVE" ? (
+                <button
+                  type="button"
+                  className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleResolve}
+                  disabled={isResolving}
+                >
+                  {isResolving ? "Resolving..." : "Mark as Resolved"}
+                </button>
+              ) : null}
               <SosStatusBadge status={alert.status} />
               <button
                 type="button"

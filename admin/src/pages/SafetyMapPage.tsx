@@ -1,14 +1,42 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import StatusBadge from "../components/common/StatusBadge";
 import SosStatusBadge from "../components/sos/SosStatusBadge";
 import { useAdminData } from "../context/AdminDataContext";
 import type { SosAlert, SosStatus } from "../types/sos";
-import { formatCoordinates, formatDateTime, getDisplayLocation, sortByCreatedAtDesc } from "../utils/sos";
+import { formatCoordinates, formatDateTime, getDisplayLocation, sortByCreatedAtDesc, getMapsUrl } from "../utils/sos";
+
+// Custom icons using standard Tailwind colors to match the legend
+const activeIcon = L.divIcon({
+  className: "bg-transparent",
+  html: `<div style="background-color: #dc2626; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+const resolvedIcon = L.divIcon({
+  className: "bg-transparent",
+  html: `<div style="background-color: #059669; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+function MapUpdater({ center }: { center: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, map.getZoom(), { animate: true });
+    }
+  }, [center, map]);
+  return null;
+}
 
 function SafetyMapPage() {
   const [statusFilter, setStatusFilter] = useState<SosStatus | "ALL">("ALL");
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
-  const { sosAlerts } = useAdminData();
+  const { sosAlerts, status: dataStatus, message: dataMessage } = useAdminData();
 
   const incidentsWithCoordinates = useMemo(
     () =>
@@ -23,6 +51,15 @@ function SafetyMapPage() {
 
   const selectedIncident: SosAlert | undefined =
     incidentsWithCoordinates.find((alert) => alert.sosId === selectedIncidentId) ?? incidentsWithCoordinates[0];
+
+  const mapCenter: [number, number] | null =
+    selectedIncident?.latitude !== null && selectedIncident?.longitude !== null && selectedIncident !== undefined
+      ? [selectedIncident.latitude, selectedIncident.longitude]
+      : incidentsWithCoordinates.length > 0 &&
+        incidentsWithCoordinates[0].latitude !== null &&
+        incidentsWithCoordinates[0].longitude !== null
+      ? [incidentsWithCoordinates[0].latitude, incidentsWithCoordinates[0].longitude]
+      : null;
 
   return (
     <div className="space-y-6">
@@ -55,20 +92,71 @@ function SafetyMapPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-slate-950">Map Container</h2>
-            <p className="mt-1 text-sm text-slate-600">Ready for a future approved web map library.</p>
+        <div className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm h-[600px] xl:h-auto xl:min-h-[600px]">
+          <div className="border-b border-slate-200 px-5 py-4 shrink-0">
+            <h2 className="text-lg font-semibold text-slate-950">Incident Map</h2>
+            <p className="mt-1 text-sm text-slate-600">Live visualization of SOS coordinates.</p>
           </div>
-          <div className="grid min-h-[420px] place-items-center bg-slate-100 p-6">
-            <div className="max-w-md rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center">
-              <p className="text-sm font-semibold text-slate-950">Map library not installed</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                A real map can render here later using the same filtered incident records and coordinate fields.
-              </p>
-            </div>
+          <div className="relative flex-1 bg-slate-100 min-h-0 z-0">
+            {dataStatus === "loading" ? (
+              <div className="absolute inset-0 grid place-items-center bg-slate-50">
+                <p className="text-sm font-medium text-slate-600">Loading map data...</p>
+              </div>
+            ) : dataStatus === "error" || dataStatus === "restricted" || dataStatus === "unauthorized" ? (
+              <div className="absolute inset-0 grid place-items-center bg-slate-50 p-6 text-center">
+                <p className="text-sm font-semibold text-red-600">Map unavailable</p>
+                <p className="mt-2 text-sm text-slate-600">{dataMessage}</p>
+              </div>
+            ) : mapCenter ? (
+              <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapUpdater center={mapCenter} />
+                {incidentsWithCoordinates.map((alert) => {
+                  if (alert.latitude === null || alert.longitude === null) return null;
+                  return (
+                    <Marker
+                      key={alert.sosId}
+                      position={[alert.latitude, alert.longitude]}
+                      icon={alert.status === "ACTIVE" ? activeIcon : resolvedIcon}
+                      eventHandlers={{
+                        click: () => setSelectedIncidentId(alert.sosId),
+                      }}
+                    >
+                      <Popup>
+                        <div className="text-sm">
+                          <p className="font-semibold text-slate-950">{alert.name}</p>
+                          <p className="text-slate-700 mt-1">{alert.status}</p>
+                          <p className="text-xs text-slate-500 mt-1">{getDisplayLocation(alert)}</p>
+                          <p className="text-xs text-slate-400 mt-1">{formatDateTime(alert.createdAt)}</p>
+                          <a
+                            href={getMapsUrl(alert) || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-block text-xs font-medium text-red-600 hover:underline"
+                          >
+                            Open in Google Maps
+                          </a>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MapContainer>
+            ) : (
+              <div className="absolute inset-0 grid place-items-center bg-slate-50 p-6 text-center">
+                <div className="max-w-md">
+                  <p className="text-sm font-semibold text-slate-950">No locations to display</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    There are currently no SOS incidents with valid coordinates matching your filter.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex flex-wrap gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-700">
+          <div className="flex flex-wrap gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-700 shrink-0">
             <span className="font-semibold text-slate-950">Legend:</span>
             <span className="inline-flex items-center gap-2">
               <span className="h-3 w-3 rounded-full bg-red-600" aria-hidden="true" /> Active SOS
@@ -82,7 +170,7 @@ function SafetyMapPage() {
           </div>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-4 xl:max-h-[600px] xl:overflow-y-auto pr-2">
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">Selected Incident</h2>
             {selectedIncident ? (
@@ -114,8 +202,8 @@ function SafetyMapPage() {
                     onClick={() => setSelectedIncidentId(alert.sosId)}
                   >
                     <span className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-slate-950">{alert.name}</span>
-                      <span className="text-xs text-slate-500">{alert.status}</span>
+                      <span className="font-medium text-slate-950 truncate pr-2">{alert.name}</span>
+                      <span className="text-xs text-slate-500 shrink-0">{alert.status}</span>
                     </span>
                     <span className="mt-1 block text-sm text-slate-600">{getDisplayLocation(alert)}</span>
                   </button>

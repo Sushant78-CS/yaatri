@@ -1,4 +1,4 @@
-import { collection, onSnapshot, orderBy, query, type DocumentData, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, doc, updateDoc, type DocumentData, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getFirebaseClient } from "../firebase/config";
 import type { EmergencyContact, SosAlert, SosStatus, SosTimestamp } from "../types/sos";
 
@@ -97,4 +97,14 @@ export const subscribeToSosAlerts = (
       onError(error);
     },
   );
+};
+
+export const resolveSosAlert = async (sosId: string): Promise<void> => {
+  const client = getFirebaseClient();
+  if (!client) {
+    throw new Error("Firebase configuration is missing.");
+  }
+
+  const sosRef = doc(client.db, "sosAlerts", sosId);
+  await updateDoc(sosRef, { status: "RESOLVED" });
 };
