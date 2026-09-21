@@ -11,9 +11,14 @@ export const signUp = async (
   fullName: string,
 ) => {
   try {
+    const cleanEmail = email.trim();
+
+    console.log("Signup email:", JSON.stringify(cleanEmail));
+    console.log("Email length:", cleanEmail.length);
+    
     const userCredentials = await createUserWithEmailAndPassword(
       auth,
-      email,
+      cleanEmail,
       password,
     );
 
@@ -30,9 +35,13 @@ export const signUp = async (
 
 export const signIn = async (email: string, password: string) => {
   try {
+    const cleanEmail = email.trim();
+
+    console.log("Signup email:", JSON.stringify(cleanEmail));
+    console.log("Email length:", cleanEmail.length);
     const userCredential = await signInWithEmailAndPassword(
       auth,
-      email,
+      cleanEmail,
       password,
     );
     return userCredential.user;

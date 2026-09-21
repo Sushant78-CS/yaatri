@@ -4,12 +4,14 @@ import { checkSafetyZone } from "@/features/safety-navigation/utils/safetyZoneEn
 import { getCitySafetyData } from "@/features/safety-navigation/data/cityData";
 import { detectCity } from "@/features/safety-navigation/utils/cityDetector";
 import emergencyServices from "@/features/safety-navigation/data/maharashtra/mumbai/emergencyServices.json";
-import StatusCard from "./StatusCard";
+import DestinationSearch from "./DestinationSearch";
 import EmergencyCard from "./EmergencyCard";
 import MapLegend from "./MapLegend";
 import useRoute from "@/features/safety-navigation/hooks/useRoute";
 import useRouteProgress from "@/features/safety-navigation/hooks/useRouteProgress";
-import { distanceToRoute } from "../utils/distanceToRoute";
+
+import useArrivalDetection from "@/features/safety-navigation/hooks/useArrivalDetection";
+import useNavigationInstruction from "@/features/safety-navigation/hooks/useNavigationInstruction";
 import {
   Camera,
   GeoJSONSource,
@@ -19,7 +21,7 @@ import {
   Images,
 } from "@maplibre/maplibre-react-native";
 
-import React from "react";
+import React, { useRef } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { findNearestAmenity } from "../utils/nearestEmergency";
 import RouteLine from "./RouteLine";
@@ -33,6 +35,7 @@ export default function SafetyMap() {
     longitude: number;
   } | null>(null);
   const [isNavigating, setIsNavigating] = React.useState(false);
+  const cameraRef = useRef<any>(null);
   React.useEffect(() => {
     console.log("NAVIGATION MODE CHANGED:", isNavigating);
   }, [isNavigating]);
@@ -59,6 +62,31 @@ export default function SafetyMap() {
     route,
     isNavigating,
   );
+  const { currentStep, stepDistance } = useNavigationInstruction(
+    routeStart,
+    route,
+    isNavigating,
+  );
+  React.useEffect(() => {
+    if (!currentStep || stepDistance === null) {
+      return;
+    }
+
+    console.log(
+      "🧭 NAVIGATION:",
+      currentStep.instruction,
+      Math.round(stepDistance),
+      "meters",
+    );
+  }, [currentStep, stepDistance]);
+  const hasArrived = useArrivalDetection(routeStart, destination, isNavigating);
+  React.useEffect(() => {
+    if (!hasArrived) return;
+
+    console.log("🏁 NAVIGATION COMPLETED");
+
+    setIsNavigating(false);
+  }, [hasArrived]);
   React.useEffect(() => {
     if (remainingDistance === null) return;
 
@@ -130,6 +158,7 @@ export default function SafetyMap() {
         }}
       >
         <Camera
+          ref={cameraRef}
           initialViewState={{
             center: [location.longitude, location.latitude],
             zoom: 15,
@@ -223,26 +252,88 @@ export default function SafetyMap() {
         )}
         <UserLocation />
       </Map>
+      <DestinationSearch
+  latitude={location.latitude}
+  longitude={location.longitude}
+  onSelect={(place) => {
+    setDestination({
+      latitude: place.latitude,
+      longitude: place.longitude,
+    });
 
+    cameraRef.current?.flyTo({
+  center: [
+    place.longitude,
+    place.latitude,
+  ],
+  zoom: 15,
+  duration: 1000,
+});
+
+    console.log(
+      "📍 SEARCH DESTINATION:",
+      place.name,
+      place.latitude,
+      place.longitude,
+    );
+  }}
+/>
       <MapLegend />
-      <StatusCard
-        status={safetyResult.status}
-        zoneName={safetyResult.zoneName}
-        distanceMeters={safetyResult.distanceMeters}
-      />
 
       <EmergencyCard
         nearestHospital={nearestHospital}
         nearestPolice={nearestPolice}
       />
-      {route && !isNavigating && (
+
+      {routeLoading && !isNavigating && (
+        <View style={styles.routeLoadingCard}>
+          <ActivityIndicator size="small" />
+
+          <View style={styles.routeLoadingTextContainer}>
+            <Text style={styles.routeLoadingTitle}>
+              🛡️ Analyzing safe route...
+            </Text>
+
+            <Text style={styles.routeLoadingSubtitle}>
+              Checking mapped safety zones
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* -----------------------------------------
+    ROUTING ERROR
+----------------------------------------- */}
+
+      {routeError && !routeLoading && !isNavigating && (
+        <View style={styles.routeErrorCard}>
+          <Text style={styles.routeErrorTitle}>Unable to calculate route</Text>
+
+          <Text style={styles.routeErrorText}>{routeError}</Text>
+        </View>
+      )}
+
+      {/* -----------------------------------------
+    ROUTE INFORMATION
+----------------------------------------- */}
+
+      {route && !routeLoading && !isNavigating && (
         <RouteInfoCard
           distanceMeters={route.distanceMeters}
           durationSeconds={route.durationSeconds}
+          safetyAnalysis={route.safetyAnalysis}
           onStartNavigation={() => {
             setIsNavigating(true);
           }}
         />
+      )}
+
+      {hasArrived && (
+        <View style={styles.arrivalCard}>
+          <Text style={styles.arrivalTitle}>🎉 You have arrived</Text>
+
+          <Text style={styles.arrivalText}>You reached your destination.</Text>
+        </View>
       )}
 
       {route &&
@@ -252,6 +343,8 @@ export default function SafetyMap() {
           <NavigationCard
             remainingDistance={remainingDistance}
             durationSeconds={remainingDuration}
+            instruction={currentStep?.instruction}
+            maneuverDistance={stepDistance}
             onStopNavigation={() => {
               setIsNavigating(false);
             }}
@@ -312,5 +405,93 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 13,
     fontWeight: "600",
+  },
+  arrivalCard: {
+    position: "absolute",
+    bottom: 30,
+    left: 20,
+    right: 20,
+    padding: 18,
+    borderRadius: 16,
+    backgroundColor: "#DCFCE7",
+    elevation: 5,
+  },
+
+  arrivalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  arrivalText: {
+    marginTop: 4,
+    fontSize: 14,
+  },
+  routeLoadingCard: {
+    position: "absolute",
+    top: 120,
+    left: 16,
+    right: 16,
+
+    backgroundColor: "#FFFFFF",
+
+    borderRadius: 18,
+
+    padding: 16,
+
+    flexDirection: "row",
+    alignItems: "center",
+
+    elevation: 6,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+  },
+
+  routeLoadingTextContainer: {
+    marginLeft: 12,
+  },
+
+  routeLoadingTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+  },
+
+  routeLoadingSubtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    color: "#6B7280",
+  },
+
+  routeErrorCard: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 24,
+
+    backgroundColor: "#FEF2F2",
+
+    borderRadius: 16,
+
+    padding: 16,
+
+    elevation: 5,
+  },
+
+  routeErrorTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#B91C1C",
+  },
+
+  routeErrorText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#7F1D1D",
   },
 });
