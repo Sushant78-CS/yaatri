@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "provision:superadmin": "bun run scripts/set-superadmin.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.2",
+    "firebase": "^12.18.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tailwindcss": "^4.3.2"
@@ -24,6 +26,7 @@
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
+    "firebase-admin": "^14.3.0",
     "globals": "^17.7.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.62.0",
