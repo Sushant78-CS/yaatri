@@ -1,5 +1,7 @@
+import AdminLayout from "../layouts/AdminLayout";
+
 function AdminPage() {
-  return <div>AdminPage</div>;
+  return <AdminLayout />;
 }
 
 export default AdminPage;
