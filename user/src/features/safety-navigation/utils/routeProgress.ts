@@ -13,13 +13,8 @@ function distanceBetween(
   const lat1 = toRadians(a.latitude);
   const lat2 = toRadians(b.latitude);
 
-  const deltaLat = toRadians(
-    b.latitude - a.latitude,
-  );
-
-  const deltaLon = toRadians(
-    b.longitude - a.longitude,
-  );
+  const deltaLat = toRadians(b.latitude - a.latitude);
+  const deltaLon = toRadians(b.longitude - a.longitude);
 
   const x =
     Math.sin(deltaLat / 2) ** 2 +
@@ -28,7 +23,8 @@ function distanceBetween(
       Math.sin(deltaLon / 2) ** 2;
 
   const c =
-    2 * Math.atan2(
+    2 *
+    Math.atan2(
       Math.sqrt(x),
       Math.sqrt(1 - x),
     );
@@ -36,14 +32,10 @@ function distanceBetween(
   return R * c;
 }
 
-export function getRemainingDistance(
+function findNearestRouteIndex(
   currentLocation: RouteCoordinate,
   route: [number, number][],
 ): number {
-  if (route.length < 2) {
-    return 0;
-  }
-
   let nearestIndex = 0;
   let nearestDistance = Infinity;
 
@@ -64,7 +56,32 @@ export function getRemainingDistance(
     }
   }
 
-  let remainingDistance = nearestDistance;
+  return nearestIndex;
+}
+
+export function getRemainingDistance(
+  currentLocation: RouteCoordinate,
+  route: [number, number][],
+): number {
+  if (route.length < 2) {
+    return 0;
+  }
+
+  const nearestIndex = findNearestRouteIndex(
+    currentLocation,
+    route,
+  );
+
+  const [nearestLongitude, nearestLatitude] =
+    route[nearestIndex];
+
+  let remainingDistance = distanceBetween(
+    currentLocation,
+    {
+      latitude: nearestLatitude,
+      longitude: nearestLongitude,
+    },
+  );
 
   for (
     let i = nearestIndex;
@@ -87,4 +104,33 @@ export function getRemainingDistance(
   }
 
   return remainingDistance;
+}
+
+/**
+ * Returns only the portion of the route
+ * that is still ahead of the user.
+ */
+export function getRemainingRoute(
+  currentLocation: RouteCoordinate,
+  route: [number, number][],
+): [number, number][] {
+  if (route.length < 2) {
+    return route;
+  }
+
+  const nearestIndex = findNearestRouteIndex(
+    currentLocation,
+    route,
+  );
+
+  const [nearestLongitude, nearestLatitude] =
+    route[nearestIndex];
+
+  // Start the visible route exactly from
+  // the user's current GPS position.
+  return [
+    [currentLocation.longitude, currentLocation.latitude],
+    [nearestLongitude, nearestLatitude],
+    ...route.slice(nearestIndex + 1),
+  ];
 }
