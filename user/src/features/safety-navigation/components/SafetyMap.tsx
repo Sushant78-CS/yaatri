@@ -9,7 +9,7 @@ import EmergencyCard from "./EmergencyCard";
 import MapLegend from "./MapLegend";
 import useRoute from "@/features/safety-navigation/hooks/useRoute";
 import useRouteProgress from "@/features/safety-navigation/hooks/useRouteProgress";
-
+import { getRemainingRoute } from "../utils/routeProgress";
 import useArrivalDetection from "@/features/safety-navigation/hooks/useArrivalDetection";
 import useNavigationInstruction from "@/features/safety-navigation/hooks/useNavigationInstruction";
 import {
@@ -138,7 +138,13 @@ export default function SafetyMap() {
     "police",
   );
   const cityData = detectedCity ? getCitySafetyData(detectedCity) : null;
-
+  const visibleRoute =
+  isNavigating && route && routeStart
+    ? getRemainingRoute(
+        routeStart,
+        route.coordinates,
+      )
+    : route?.coordinates ?? null;
   return (
     <View style={styles.container}>
       <Map
@@ -167,7 +173,7 @@ export default function SafetyMap() {
           zoom={16}
         />
 
-        <RouteLine coordinates={route?.coordinates ?? null} />
+       <RouteLine coordinates={visibleRoute} />
         {destination && (
           <DestinationMarker
             latitude={destination.latitude}
