@@ -26,3 +26,6 @@ dist-ssr
 # Firebase Admin SDK Service Accounts
 *service-account*.json
 *firebase-adminsdk*.json
+
+.firebase
+firebase-debug.log

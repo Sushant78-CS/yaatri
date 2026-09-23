@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for authentication and roles
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (request.auth.token.role == "admin" || request.auth.token.role == "superadmin");
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.token.role == "superadmin";
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      // Mobile users can read/write their own profile.
+      // Admins can read all profiles (required for the admin dashboard users view).
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    // 2. SOS Alerts Collection
+    match /sosAlerts/{sosId} {
+      // Read: 
+      // - Mobile users can read their own alerts (using where("userId", "==", uid)).
+      // - Admins can read all alerts (required for dashboard/map).
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+
+      // Create:
+      // - Mobile users can create an alert. Must be for themselves, and status must be ACTIVE.
+      allow create: if isOwner(request.resource.data.userId) 
+                    && request.resource.data.status == "ACTIVE";
+
+      // Update:
+      // - Normal mobile users cannot update (no mobile resolve/cancel workflow).
+      // - Admins can update, but ONLY to change status from ACTIVE to RESOLVED.
+      allow update: if isAdmin() 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status == "RESOLVED"
+                    && resource.data.status == "ACTIVE";
+
+      allow delete: if false; // Deletion is not implemented/allowed for SOS.
+    }
+
+    // 3. Administrators Metadata Collection
+    match /administrators/{adminId} {
+      // Only superadmins can view or modify administrator metadata.
+      // Normal admins and mobile users are blocked.
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}
